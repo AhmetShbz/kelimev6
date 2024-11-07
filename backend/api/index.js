@@ -9,12 +9,15 @@ require('dotenv').config();
 
 const app = express();
 
-// backend/api/index.js dosyasında
 app.use(cors({
-  origin: 'https://kelimev6.vercel.app',  // Bu satırı güncelle
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  origin: ['https://kelimev6.vercel.app', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
+
+// CORS preflight için OPTIONS request handler ekleyelim
+app.options('*', cors());
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
