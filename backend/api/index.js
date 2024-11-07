@@ -7,6 +7,12 @@ require('dotenv').config();
 
 const app = express();
 
+// CORS ayarları
+app.use(cors({
+  origin: 'https://kelimev6.vercel.app',  // Frontend URL'nizi buraya yazın
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],  // İzin verilen HTTP metotları
+}));
+
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
