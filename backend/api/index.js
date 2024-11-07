@@ -1,3 +1,5 @@
+// api/index.js
+
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
@@ -9,13 +11,15 @@ const app = express();
 
 // CORS ayarları
 app.use(cors({
-  origin: 'https://kelimev6.vercel.app',  // Frontend URL'nizi buraya yazın
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],  // İzin verilen HTTP metotları
+  origin: process.env.NODE_ENV === 'production'
+    ? 'https://kelimev6.vercel.app'
+    : 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
 }));
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
-app.use(cors());
 
 // MongoDB bağlantısı
 mongoose.connect(process.env.MONGODB_URI, {
@@ -29,20 +33,26 @@ mongoose.connect(process.env.MONGODB_URI, {
   console.error('MongoDB bağlantı hatası:', err);
 });
 
-// Kullanıcı modeli
+// Models
 const User = require('../models/User');
+const Word = require('../models/Word');
+const Category = require('../models/Category');
 
-// JWT doğrulama middleware'i
+// Middlewares
 const authenticateToken = require('../middlewares/authMiddleware');
-
-// Admin middleware'i
 const adminMiddleware = require('../middlewares/adminMiddleware');
 
-// Admin route'ları
+// Routes
 const adminRoutes = require('../routes/adminRoutes');
-app.use('/api/admin', authenticateToken, adminMiddleware, adminRoutes);
+const wordRoutes = require('../routes/wordRoutes');
+const profileRoutes = require('../routes/profileRoutes');
 
-// Normal kullanıcı kayıt endpoint'i
+// Route tanımlamaları
+app.use('/api/admin', authenticateToken, adminMiddleware, adminRoutes);
+app.use('/api/words', wordRoutes);
+app.use('/api/profile', profileRoutes);
+
+// Kullanıcı kayıt endpoint'i
 app.post('/api/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -61,7 +71,9 @@ app.post('/api/register', async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      isAdmin: false
+      isAdmin: false,
+      learnedWordsCount: 0,
+      dailyStreak: 0
     });
     await user.save();
 
@@ -72,7 +84,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Normal kullanıcı giriş endpoint'i
+// Kullanıcı giriş endpoint'i
 app.post('/api/login', async (req, res) => {
   try {
     const { loginIdentifier, password } = req.body;
@@ -94,7 +106,10 @@ app.post('/api/login', async (req, res) => {
 
     // JWT token oluştur
     const token = jwt.sign(
-      { userId: user._id, isAdmin: user.isAdmin },
+      {
+        userId: user._id,
+        isAdmin: user.isAdmin
+      },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -115,17 +130,12 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Kullanıcı bilgilerini güncelleme endpoint'i
-app.put('/api/user', authenticateToken, async (req, res) => {
+// Profil bilgileri güncelleme endpoint'i
+app.put('/api/user/profile', authenticateToken, async (req, res) => {
   try {
-    const { userId, currentPassword, newPassword, newEmail, profileImage } = req.body;
+    const { currentPassword, newPassword, newEmail, profileImage } = req.body;
 
-    // Token'daki kullanıcı ID'si ile gönderilen ID'nin eşleştiğini kontrol et
-    if (req.user.userId !== userId) {
-      return res.status(403).json({ message: 'Yetkisiz erişim' });
-    }
-
-    const user = await User.findById(userId);
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
@@ -157,7 +167,7 @@ app.put('/api/user', authenticateToken, async (req, res) => {
 
     // Kullanıcıyı güncelle
     const updatedUser = await User.findByIdAndUpdate(
-      userId,
+      req.user.userId,
       { $set: updates },
       { new: true }
     ).select('-password');
@@ -175,14 +185,27 @@ app.put('/api/user', authenticateToken, async (req, res) => {
 // Kelime öğrenme durumu güncelleme endpoint'i
 app.post('/api/words/learned', authenticateToken, async (req, res) => {
   try {
-    const { userId, wordId } = req.body;
+    const { wordId } = req.body;
+    const userId = req.user.userId;
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
 
-    // Öğrenilen kelime sayısını artır
+    // Kelimeyi öğrenildi olarak işaretle
+    await Category.findOneAndUpdate(
+      { userId, wordId },
+      {
+        $set: {
+          categoryName: 'Öğrendiğim Kelimeler',
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    // Öğrenilen kelime sayısını güncelle
     user.learnedWordsCount = (user.learnedWordsCount || 0) + 1;
     await user.save();
 
@@ -199,16 +222,22 @@ app.post('/api/words/learned', authenticateToken, async (req, res) => {
 // Günlük seri güncelleme endpoint'i
 app.post('/api/streak/update', authenticateToken, async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.user.userId;
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
 
-    // Günlük seriyi artır
-    user.dailyStreak = (user.dailyStreak || 0) + 1;
-    await user.save();
+    const lastActivityDate = user.lastActivityDate || new Date(0);
+    const today = new Date();
+
+    // Son aktivite tarihi bugün değilse seriyi artır
+    if (lastActivityDate.toDateString() !== today.toDateString()) {
+      user.dailyStreak = (user.dailyStreak || 0) + 1;
+      user.lastActivityDate = today;
+      await user.save();
+    }
 
     res.json({
       message: 'Günlük seri güncellendi',
@@ -222,7 +251,11 @@ app.post('/api/streak/update', authenticateToken, async (req, res) => {
 
 // Sağlık kontrolü endpoint'i
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
+  });
 });
 
 // 404 Handler
