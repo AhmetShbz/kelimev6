@@ -17,7 +17,7 @@ import { motion } from 'framer-motion';
 
 const App = () => {
   // API URL'ini environment variable'dan al veya fallback değeri kullan
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://kelimev66.vercel.app/api';
 
   // State tanımlamaları
   const [words, setWords] = useState(() => {
