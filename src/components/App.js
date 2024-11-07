@@ -14,7 +14,7 @@ import {
 } from '../utils/helpers';
 import { BookOpen, BarChart2, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
-
+asdasdasd
 const App = () => {
   // API URL'ini environment variable'dan al veya fallback değeri kullan
   const API_URL = process.env.REACT_APP_API_URL || 'https://kelimev66.vercel.app/api';
