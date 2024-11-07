@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import WordList from './WordList';
-import Profile from './Profile';
-import Dashboard from './Dashboard';
-import Settings from './Settings';
-import AuthComponent from './AuthComponent';
-import AdminAuth from './AdminAuth';
-import AdminPanel from './AdminPanel';
-import ProfileMenu from './ProfileMenu';
+import WordList from './components/WordList';
+import Profile from './components/Profile';
+import Dashboard from './components/Dashboard';
+import Settings from './components/Settings';
+import AuthComponent from './components/AuthComponent';
+import AdminAuth from './components/AdminAuth';
+import AdminPanel from './components/AdminPanel';
+import ProfileMenu from './components/ProfileMenu';
+import axios from 'axios';
 import {
   getFromLocalStorage,
   saveToLocalStorage,
@@ -16,8 +17,7 @@ import { BookOpen, BarChart2, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const App = () => {
-  // API URL'ini environment variable'dan al veya fallback değeri kullan
-  const API_URL = process.env.REACT_APP_API_URL || 'https://kelimev6.vercel.app/api';
+  const API_URL = process.env.REACT_APP_API_URL;
 
   // State tanımlamaları
   const [words, setWords] = useState(() => {
@@ -60,6 +60,23 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
+  // Axios instance oluşturma
+  const axiosInstance = axios.create({
+    baseURL: API_URL,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+
+  // Token interceptor
+  axiosInstance.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
   // Dark Mode Toggle Fonksiyonu
   const toggleDarkMode = useCallback(() => {
     setDarkMode(prevMode => !prevMode);
@@ -101,26 +118,23 @@ const App = () => {
     }
   }, []);
 
-  // Words Değişikliklerini Local Storage'e Kaydet
+  // Kelimeleri Yükleme
   useEffect(() => {
-    saveToLocalStorage('words', words);
-  }, [words]);
-
-  // Categorized Words Değişikliklerini Local Storage'e Kaydet
-  useEffect(() => {
-    saveToLocalStorage('categorizedWords', categorizedWords);
-  }, [categorizedWords]);
-
-  // User Settings Değişikliklerini Local Storage'e Kaydet
-  useEffect(() => {
-    Object.entries(userSettings).forEach(([key, value]) => {
-      if (value !== null && value !== undefined) {
-        localStorage.setItem(key, value.toString());
+    const fetchWords = async () => {
+      try {
+        const response = await axiosInstance.get('/words');
+        setWords(response.data);
+      } catch (error) {
+        console.error('Kelimeler yüklenirken hata:', error);
       }
-    });
-  }, [userSettings]);
+    };
 
-  // Dark Mode Değişikliklerini Local Storage'e Kaydet ve DOM'u Güncelle
+    if (isAuthenticated) {
+      fetchWords();
+    }
+  }, [isAuthenticated]);
+
+  // Dark Mode Değişikliklerini Local Storage'e Kaydet
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
     if (darkMode) {
@@ -131,39 +145,48 @@ const App = () => {
   }, [darkMode]);
 
   // Kategorilere Kelime Ekleme Fonksiyonu
-  const addToCategory = useCallback((word, category) => {
-    setCategorizedWords(prev => {
-      const updatedCategories = { ...prev };
-      // Kelimeyi tüm kategorilerden çıkar
-      categories.forEach(cat => {
-        if (updatedCategories[cat]) {
-          updatedCategories[cat] = updatedCategories[cat].filter(
-            w => w.polish !== word.polish
-          );
-        }
+  const addToCategory = useCallback(async (word, category) => {
+    try {
+      await axiosInstance.post('/words/category', {
+        wordId: word._id,
+        categoryName: category
       });
-      // Kelimeyi hedef kategoriye ekle
-      updatedCategories[category] = [
-        ...(updatedCategories[category] || []),
-        word,
-      ];
-      return updatedCategories;
-    });
-  }, [categories]);
+
+      setCategorizedWords(prev => {
+        const updatedCategories = { ...prev };
+        // Kelimeyi tüm kategorilerden çıkar
+        categories.forEach(cat => {
+          if (updatedCategories[cat]) {
+            updatedCategories[cat] = updatedCategories[cat].filter(
+              w => w.polish !== word.polish
+            );
+          }
+        });
+        // Kelimeyi hedef kategoriye ekle
+        updatedCategories[category] = [
+          ...(updatedCategories[category] || []),
+          word,
+        ];
+        return updatedCategories;
+      });
+    } catch (error) {
+      console.error('Kategori güncellenirken hata:', error);
+    }
+  }, [categories, axiosInstance]);
 
   // Kategoriden Kelime Çıkarma Fonksiyonu
-  const removeFromCategory = useCallback((word, category) => {
-    setCategorizedWords(prev => ({
-      ...prev,
-      [category]: (prev[category] || []).filter(w => w.polish !== word.polish),
-    }));
-  }, []);
+  const removeFromCategory = useCallback(async (word, category) => {
+    try {
+      await axiosInstance.delete(`/words/category/${word._id}`);
 
-  // Dosya Yükleme Fonksiyonu
-  const handleFileUpload = useCallback(newWords => {
-    setWords(newWords);
-    saveToLocalStorage('words', newWords);
-  }, []);
+      setCategorizedWords(prev => ({
+        ...prev,
+        [category]: (prev[category] || []).filter(w => w.polish !== word.polish),
+      }));
+    } catch (error) {
+      console.error('Kelime kategoriden çıkarılırken hata:', error);
+    }
+  }, [axiosInstance]);
 
   return (
     <Router>
@@ -271,21 +294,19 @@ const App = () => {
                     userSettings={userSettings}
                     setUserSettings={setUserSettings}
                     darkMode={darkMode}
-                    apiUrl={API_URL}
                   />
                 )}
                 {activeTab === 'settings' && (
                   <Settings
                     userSettings={userSettings}
                     setUserSettings={setUserSettings}
-                    words={words}
-                    setWords={handleFileUpload}
-                    categories={categories}
                     darkMode={darkMode}
                   />
                 )}
                 {activeTab === 'admin' && userSettings.isAdmin && (
-                  <AdminPanel darkMode={darkMode} apiUrl={API_URL} />
+                  <AdminPanel
+                    darkMode={darkMode}
+                  />
                 )}
               </div>
             </>
@@ -302,7 +323,6 @@ const App = () => {
                     darkMode={darkMode}
                     setIsAuthenticated={setIsAdminAuthenticated}
                     setUserSettings={setUserSettings}
-                    apiUrl={API_URL}
                   />
                 )
               }
@@ -315,7 +335,6 @@ const App = () => {
                     darkMode={darkMode}
                     setIsAuthenticated={setIsAuthenticated}
                     setUserSettings={setUserSettings}
-                    apiUrl={API_URL}
                   />
                 ) : null
               }

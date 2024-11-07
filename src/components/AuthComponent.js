@@ -12,12 +12,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const AuthComponent = ({
-  darkMode,
-  setIsAuthenticated,
-  setUserSettings,
-  apiUrl
-}) => {
+const AuthComponent = ({ darkMode, setIsAuthenticated, setUserSettings }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [email, setEmail] = useState('');
@@ -27,6 +22,8 @@ const AuthComponent = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const API_URL = process.env.REACT_APP_API_URL;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setNotification({ type: '', message: '' });
@@ -34,10 +31,14 @@ const AuthComponent = ({
 
     try {
       if (isLogin) {
-        // Login endpoint'i artık POST metodu kullanıyor
         const response = await axios.post(
-          `${apiUrl}/login`,
-          { loginIdentifier, password }
+          `${API_URL}/login`,
+          { loginIdentifier, password },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
         );
         setNotification({
           type: 'success',
@@ -52,37 +53,47 @@ const AuthComponent = ({
           userId: response.data.userId,
           username: response.data.username,
           email: response.data.email,
-          profileImage: response.data.profileImage || '',learnedWordsCount: response.data.learnedWordsCount,
+          profileImage: response.data.profileImage || '',
+          learnedWordsCount: response.data.learnedWordsCount,
           dailyStreak: response.data.dailyStreak,
-          isAdmin: false,
+          isAdmin: response.data.isAdmin,
         });
         setTimeout(() => {
           setIsAuthenticated(true);
         }, 1500);
       } else {
-        // Register endpoint'i artık POST metodu kullanıyor
-        await axios.post(`${apiUrl}/register`, {
-          username,
-          email,
-          password,
-        });
+        await axios.post(
+          `${API_URL}/register`,
+          {
+            username,
+            email,
+            password,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
         setNotification({
           type: 'success',
           message: 'Kayıt başarılı! Giriş yapılıyor...',
         });
         setTimeout(async () => {
           const loginResponse = await axios.post(
-            `${apiUrl}/login`,
-            { loginIdentifier: email, password }
+            `${API_URL}/login`,
+            { loginIdentifier: email, password },
+            {
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }
           );
           localStorage.setItem('token', loginResponse.data.token);
           localStorage.setItem('userId', loginResponse.data.userId);
           localStorage.setItem('username', loginResponse.data.username);
           localStorage.setItem('email', loginResponse.data.email);
-          localStorage.setItem(
-            'profileImage',
-            loginResponse.data.profileImage || ''
-          );
+          localStorage.setItem('profileImage', loginResponse.data.profileImage || '');
           setUserSettings({
             userId: loginResponse.data.userId,
             username: loginResponse.data.username,
@@ -90,12 +101,13 @@ const AuthComponent = ({
             profileImage: loginResponse.data.profileImage || '',
             learnedWordsCount: loginResponse.data.learnedWordsCount,
             dailyStreak: loginResponse.data.dailyStreak,
-            isAdmin: false,
+            isAdmin: loginResponse.data.isAdmin,
           });
           setIsAuthenticated(true);
         }, 1500);
       }
     } catch (error) {
+      console.error('Auth error:', error);
       setNotification({
         type: 'error',
         message: error.response?.data?.message || 'Bir hata oluştu',
@@ -115,17 +127,6 @@ const AuthComponent = ({
     setIsLoading(false);
   };
 
-  // Animasyon varyantları
-  const containerVariants = {
-    hidden: { opacity: 0, y: -20 },
-    visible: { opacity: 1, y: 0 },
-  };
-
-  const buttonVariants = {
-    hover: { scale: 1.05 },
-    tap: { scale: 0.95 },
-  };
-
   return (
     <div
       className={`min-h-screen flex items-center justify-center px-4 ${
@@ -133,9 +134,8 @@ const AuthComponent = ({
       }`}
     >
       <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className={`flex flex-col md:flex-row w-full max-w-4xl ${
           darkMode ? 'bg-gray-800' : 'bg-white'
@@ -163,7 +163,7 @@ const AuthComponent = ({
           >
             {isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
           </h2>
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {notification.message && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -285,9 +285,8 @@ const AuthComponent = ({
             </div>
             <motion.button
               type="submit"
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className={`w-full py-2 px-4 flex items-center justify-center rounded-lg ${
                 darkMode
                   ? 'bg-blue-600 text-white hover:bg-blue-700'

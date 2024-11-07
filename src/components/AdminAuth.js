@@ -15,7 +15,6 @@ const AdminAuth = ({
   darkMode,
   setIsAuthenticated,
   setUserSettings,
-  apiUrl
 }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -26,6 +25,8 @@ const AdminAuth = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const API_URL = process.env.REACT_APP_API_URL;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setNotification({ type: '', message: '' });
@@ -34,8 +35,13 @@ const AdminAuth = ({
     try {
       if (isLogin) {
         const response = await axios.post(
-          `${apiUrl}/admin/login`,
-          { loginIdentifier, password }
+          `${API_URL}/admin/login`,
+          { loginIdentifier, password },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
         );
         setNotification({
           type: 'success',
@@ -58,28 +64,38 @@ const AdminAuth = ({
           setIsAuthenticated(true);
         }, 1500);
       } else {
-        await axios.post(`${apiUrl}/admin/register`, {
-          username,
-          email,
-          password,
-        });
+        await axios.post(
+          `${API_URL}/admin/register`,
+          {
+            username,
+            email,
+            password,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
         setNotification({
           type: 'success',
           message: 'Kayıt başarılı! Giriş yapılıyor...',
         });
         setTimeout(async () => {
           const loginResponse = await axios.post(
-            `${apiUrl}/admin/login`,
-            { loginIdentifier: email, password }
+            `${API_URL}/admin/login`,
+            { loginIdentifier: email, password },
+            {
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }
           );
           localStorage.setItem('token', loginResponse.data.token);
           localStorage.setItem('userId', loginResponse.data.userId);
           localStorage.setItem('username', loginResponse.data.username);
           localStorage.setItem('email', loginResponse.data.email);
-          localStorage.setItem(
-            'profileImage',
-            loginResponse.data.profileImage || ''
-          );
+          localStorage.setItem('profileImage', loginResponse.data.profileImage || '');
           localStorage.setItem('isAdmin', 'true');
           setUserSettings({
             userId: loginResponse.data.userId,
@@ -108,18 +124,6 @@ const AdminAuth = ({
     setPassword('');
     setUsername('');
     setNotification({ type: '', message: '' });
-    setIsLoading(false);
-  };
-
-  // Animasyon varyantları
-  const containerVariants = {
-    hidden: { opacity: 0, y: -20 },
-    visible: { opacity: 1, y: 0 },
-  };
-
-  const buttonVariants = {
-    hover: { scale: 1.05 },
-    tap: { scale: 0.95 },
   };
 
   return (
@@ -131,8 +135,11 @@ const AdminAuth = ({
       <motion.div
         initial="hidden"
         animate="visible"
-        variants={containerVariants}
-        transition={{ duration: 0.5 }}
+        variants={{
+          hidden: { opacity: 0, scale: 0.95 },
+          visible: { opacity: 1, scale: 1 }
+        }}
+        transition={{ duration: 0.3 }}
         className={`flex w-full max-w-4xl ${
           darkMode ? 'bg-gray-900' : 'bg-white'
         } rounded-lg shadow-xl overflow-hidden`}
@@ -144,7 +151,7 @@ const AdminAuth = ({
           }`}
         >
           <img
-            src="https://source.unsplash.com/random/400x300?technology,admin"
+            src="/api/placeholder/400/300"
             alt="Admin Giriş Görseli"
             className="max-w-full h-auto rounded"
           />
@@ -277,9 +284,8 @@ const AdminAuth = ({
             </div>
             <motion.button
               type="submit"
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className={`w-full py-2 px-4 flex items-center justify-center rounded-lg transition-colors duration-300 ${
                 darkMode
                   ? 'bg-blue-600 text-white hover:bg-blue-500'
@@ -305,14 +311,8 @@ const AdminAuth = ({
               )}
             </motion.button>
           </form>
-          <div
-            className={`mt-6 ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            } text-center`}
-          >
-            {isLogin
-              ? 'Admin hesabınız yok mu?'
-              : 'Zaten admin hesabınız var mı?'}{' '}
+          <div className="mt-6 text-center">
+            {isLogin ? 'Admin hesabınız yok mu?' : 'Zaten admin hesabınız var mı?'}{' '}
             <button
               onClick={toggleAuthMode}
               className={`font-semibold focus:outline-none transition-colors duration-300 ${
