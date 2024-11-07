@@ -15,42 +15,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
-const playAudioWithElevenLabs = async (text, voice_id = 'XB0fDUnXU5powFXDhCwa') => {
-  try {
-    const response = await axios({
-      method: 'post',
-      url: `https://api.elevenlabs.io/v1/text-to-speech/${voice_id}`,
-      headers: {
-        Accept: 'audio/mpeg',
-        'xi-api-key': process.env.REACT_APP_ELEVEN_LABS_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        text: text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5,
-          speed: 0.75
-        }
-      },
-      responseType: 'arraybuffer'
-    });
-
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const audioBuffer = await audioContext.decodeAudioData(response.data);
-    const source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(audioContext.destination);
-    source.start(0);
-  } catch (error) {
-    console.error('Error playing audio:', error);
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'pl-PL';
-    window.speechSynthesis.speak(utterance);
-  }
-};
-
 const WordCard = React.memo(({
   word,
   darkMode,
@@ -265,6 +229,7 @@ const WordList = React.memo(({
   addToCategory,
   darkMode
 }) => {
+  const API_URL = process.env.REACT_APP_API_URL;
   const [currentPage, setCurrentPage] = useState(1);
   const [filter, setFilter] = useState('all');
   const [expandedWords, setExpandedWords] = useState({});
@@ -277,6 +242,17 @@ const WordList = React.memo(({
     setLocalWords(words);
   }, [words]);
 
+  const playAudio = useCallback(async (word, type) => {
+    try {
+      const textToSpeak = type === 'word' ? word.polish : word.example;
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.lang = 'pl-PL';
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error('Ses oynatma hatası:', error);
+    }
+  }, []);
+
   const filteredWords = useMemo(() => {
     return filter === 'all'
       ? localWords
@@ -285,7 +261,7 @@ const WordList = React.memo(({
 
   const totalPages = useMemo(() => {
     return Math.ceil(filteredWords.length / wordsPerPage);
-  }, [filteredWords, wordsPerPage]);
+  }, [filteredWords.length, wordsPerPage]);
 
   const currentWords = useMemo(() => {
     const startIndex = (currentPage - 1) * wordsPerPage;
@@ -294,11 +270,6 @@ const WordList = React.memo(({
 
   const paginate = useCallback((pageNumber) => {
     setCurrentPage(pageNumber);
-  }, []);
-
-  const playAudio = useCallback((word, type) => {
-    const text = type === 'word' ? word.polish : word.example;
-    playAudioWithElevenLabs(text);
   }, []);
 
   const toggleWordExpand = useCallback((wordId) => {
@@ -314,20 +285,32 @@ const WordList = React.memo(({
     'Tekrar Edilecek Kelimeler': { icon: RefreshCw, color: 'yellow' }
   }), []);
 
-  const handleCategoryClick = useCallback((word, category) => {
-    addToCategory(word, category);
-    setActiveCategory((prev) => ({
-      ...prev,
-      [word.polish]: category
-    }));
-    setLocalWords((prevWords) =>
-      prevWords.map((w) =>
-        w.polish === word.polish
-          ? { ...w, category: category }
-          : w
-      )
-    );
-  }, [addToCategory]);
+  const handleCategoryClick = useCallback(async (word, category) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/words/category`,
+        {
+          wordId: word._id,
+          categoryName: category
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      addToCategory(word, category);
+      setActiveCategory((prev) => ({
+        ...prev,
+        [word.polish]: category
+      }));
+    } catch (error) {
+      console.error('Kategori güncellenirken hata:', error);
+    }
+  }, [API_URL, addToCategory]);
 
   const difficultyColors = useMemo(() => ({
     Kolay: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100',
@@ -365,34 +348,6 @@ const WordList = React.memo(({
     return `${baseStyles} ${colorStyles} ${isActive ? activeStyles : ''}`;
   }, [categoryIcons]);
 
-  const handleFilterChange = useCallback((newFilter) => {
-    setFilter(newFilter);
-    setCurrentPage(1); // Reset to the first page when the filter changes
-  }, []);
-
-  const renderPaginationButton = useCallback((direction) => {
-    const isDisabled = direction === 'prev' ? currentPage === 1 : currentPage === totalPages;
-    const onClick = () => paginate(direction === 'prev' ? currentPage - 1 : currentPage + 1);
-    const Icon = direction === 'prev' ? ChevronLeft : ChevronRight;
-    const text = direction === 'prev' ? 'Önceki' : 'Sonraki';
-
-    return (
-      <button
-        onClick={onClick}
-        disabled={isDisabled}
-        className={`flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-          darkMode
-            ? 'bg-blue-600 text-white hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-400'
-            : 'bg-blue-500 text-white hover:bg-blue-400 disabled:bg-gray-300 disabled:text-gray-500'
-        } transition-colors duration-300`}
-      >
-        {direction === 'prev' && <Icon size={18} className="mr-2" />}
-        {text}
-        {direction === 'next' && <Icon size={18} className="ml-2" />}
-      </button>
-    );
-  }, [currentPage, totalPages, darkMode, paginate]);
-
   return (
     <div
       className={`rounded-lg shadow-lg overflow-hidden ${
@@ -415,7 +370,10 @@ const WordList = React.memo(({
           />
           <select
             value={filter}
-            onChange={(e) => handleFilterChange(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className={`border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ${
               darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'
             }`}
@@ -427,7 +385,7 @@ const WordList = React.memo(({
           </select>
         </div>
       </div>
-      <div className="p-6 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="p-6 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {currentWords.map((word) => (
           <WordCard
             key={word.polish}
@@ -450,7 +408,19 @@ const WordList = React.memo(({
           darkMode ? 'bg-gray-900 border-gray-800' : 'bg-gray-50 border-gray-200'
         }`}
       >
-        {renderPaginationButton('prev')}
+        <button
+          onClick={() => paginate(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`flex items-center px-4 py-2 text-sm font-medium rounded-md ${
+            darkMode
+              ? 'bg-blue-600 text-white hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-400'
+              : 'bg-blue-500 text-white hover:bg-blue-400 disabled:bg-gray-300 disabled:text-gray-500'
+          } transition-colors duration-300`}
+        >
+          <ChevronLeft size={18} className="mr-2" />
+          Önceki
+        </button>
+
         <div className="flex items-center">
           <span
             className={`text-sm ${
@@ -475,7 +445,19 @@ const WordList = React.memo(({
             )}
           </select>
         </div>
-        {renderPaginationButton('next')}
+
+        <button
+          onClick={() => paginate(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`flex items-center px-4 py-2 text-sm font-medium rounded-md ${
+            darkMode
+              ? 'bg-blue-600 text-white hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-400'
+              : 'bg-blue-500 text-white hover:bg-blue-400 disabled:bg-gray-300 disabled:text-gray-500'
+          } transition-colors duration-300`}
+        >
+          Sonraki
+          <ChevronRight size={18} className="ml-2" />
+        </button>
       </div>
     </div>
   );
