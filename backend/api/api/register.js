@@ -32,6 +32,6 @@ module.exports = async (req, res) => {
       res.status(500).json({ message: 'Sunucu hatası', error: error.message });
     }
   } else {
-    res.status(405).json({ message: 'Method Not Allowed' });
+    res.status(408).json({ message: 'Method Not Allowed' });
   }
 };
