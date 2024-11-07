@@ -6,7 +6,7 @@ import {
   Mail,
   ArrowRight,
   CheckCircle,
-  XCircle, // XCircle ikonunu ekledik
+  XCircle,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -34,9 +34,10 @@ const AuthComponent = ({
 
     try {
       if (isLogin) {
-        const response = await axios.get(
+        // Login endpoint'i artık POST metodu kullanıyor
+        const response = await axios.post(
           `${apiUrl}/login`,
-          { params: { loginIdentifier, password } } // Params olarak gönderiyoruz
+          { loginIdentifier, password }
         );
         setNotification({
           type: 'success',
@@ -51,25 +52,28 @@ const AuthComponent = ({
           userId: response.data.userId,
           username: response.data.username,
           email: response.data.email,
-          profileImage: response.data.profileImage || '',
+          profileImage: response.data.profileImage || '',learnedWordsCount: response.data.learnedWordsCount,
+          dailyStreak: response.data.dailyStreak,
+          isAdmin: false,
         });
         setTimeout(() => {
           setIsAuthenticated(true);
         }, 1500);
       } else {
-        await axios.get(`${apiUrl}/register`, {
+        // Register endpoint'i artık POST metodu kullanıyor
+        await axios.post(`${apiUrl}/register`, {
           username,
           email,
-          password
+          password,
         });
         setNotification({
           type: 'success',
           message: 'Kayıt başarılı! Giriş yapılıyor...',
         });
         setTimeout(async () => {
-          const loginResponse = await axios.get(
+          const loginResponse = await axios.post(
             `${apiUrl}/login`,
-            { params: { loginIdentifier: email, password } } // Params olarak gönderiyoruz
+            { loginIdentifier: email, password }
           );
           localStorage.setItem('token', loginResponse.data.token);
           localStorage.setItem('userId', loginResponse.data.userId);
@@ -84,6 +88,9 @@ const AuthComponent = ({
             username: loginResponse.data.username,
             email: loginResponse.data.email,
             profileImage: loginResponse.data.profileImage || '',
+            learnedWordsCount: loginResponse.data.learnedWordsCount,
+            dailyStreak: loginResponse.data.dailyStreak,
+            isAdmin: false,
           });
           setIsAuthenticated(true);
         }, 1500);
@@ -131,19 +138,19 @@ const AuthComponent = ({
         variants={containerVariants}
         transition={{ duration: 0.5 }}
         className={`flex flex-col md:flex-row w-full max-w-4xl ${
-          darkMode ? 'bg-gray-900' : 'bg-white'
+          darkMode ? 'bg-gray-800' : 'bg-white'
         } rounded-lg shadow-xl overflow-hidden`}
       >
         {/* Görsel Bölümü */}
         <div
           className={`hidden md:flex w-full md:w-1/2 items-center justify-center p-8 ${
-            darkMode ? 'bg-gray-800' : 'bg-gray-100'
+            darkMode ? 'bg-gray-700' : 'bg-gray-50'
           }`}
         >
           <img
-            src="https://source.unsplash.com/random/400x300?nature,water"
+            src="/api/placeholder/400/300"
             alt="Giriş Görseli"
-            className="max-w-full h-auto rounded"
+            className="max-w-full h-auto rounded-lg shadow-md"
           />
         </div>
 
@@ -193,9 +200,9 @@ const AuthComponent = ({
                   onChange={(e) => setLoginIdentifier(e.target.value)}
                   className={`w-full pl-12 pr-4 py-2 rounded-lg ${
                     darkMode
-                      ? 'bg-gray-800 text-white border border-gray-700'
-                      : 'bg-gray-100 text-gray-800 border border-gray-300'
-                  } focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
+                      ? 'bg-gray-700 text-white border border-gray-600'
+                      : 'bg-gray-50 text-gray-800 border border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   required
                   disabled={isLoading}
                 />
@@ -216,9 +223,9 @@ const AuthComponent = ({
                     onChange={(e) => setUsername(e.target.value)}
                     className={`w-full pl-12 pr-4 py-2 rounded-lg ${
                       darkMode
-                        ? 'bg-gray-800 text-white border border-gray-700'
-                        : 'bg-gray-100 text-gray-800 border border-gray-300'
-                    } focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
+                        ? 'bg-gray-700 text-white border border-gray-600'
+                        : 'bg-gray-50 text-gray-800 border border-gray-300'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     required
                     disabled={isLoading}
                   />
@@ -237,9 +244,9 @@ const AuthComponent = ({
                     onChange={(e) => setEmail(e.target.value)}
                     className={`w-full pl-12 pr-4 py-2 rounded-lg ${
                       darkMode
-                        ? 'bg-gray-800 text-white border border-gray-700'
-                        : 'bg-gray-100 text-gray-800 border border-gray-300'
-                    } focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
+                        ? 'bg-gray-700 text-white border border-gray-600'
+                        : 'bg-gray-50 text-gray-800 border border-gray-300'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     required
                     disabled={isLoading}
                   />
@@ -260,18 +267,18 @@ const AuthComponent = ({
                 onChange={(e) => setPassword(e.target.value)}
                 className={`w-full pl-12 pr-12 py-2 rounded-lg ${
                   darkMode
-                    ? 'bg-gray-800 text-white border border-gray-700'
-                    : 'bg-gray-100 text-gray-800 border border-gray-300'
-                } focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
+                    ? 'bg-gray-700 text-white border border-gray-600'
+                    : 'bg-gray-50 text-gray-800 border border-gray-300'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 required
                 disabled={isLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className={`absolute right-3 top-1/2 transform -translate-y-1/2 focus:outline-none ${
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}
+                } hover:text-gray-700 focus:outline-none`}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -281,22 +288,18 @@ const AuthComponent = ({
               variants={buttonVariants}
               whileHover="hover"
               whileTap="tap"
-              className={`w-full py-2 px-4 flex items-center justify-center rounded-lg transition-colors duration-300 ${
+              className={`w-full py-2 px-4 flex items-center justify-center rounded-lg ${
                 darkMode
-                  ? 'bg-blue-600 text-white hover:bg-blue-500'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'bg-blue-500 text-white hover:bg-blue-600'
-              }`}
+              } transition-colors duration-300`}
               disabled={isLoading}
             >
               {isLoading ? (
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    ease: 'linear',
-                  }}
-                  className="w-6 h-6 border-t-2 border-b-2 border-white rounded-full"
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  className="w-6 h-6 border-2 border-white border-t-transparent rounded-full"
                 />
               ) : (
                 <>
@@ -306,15 +309,13 @@ const AuthComponent = ({
               )}
             </motion.button>
           </form>
-          <div
-            className={`mt-6 ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            } text-center`}
-          >
-            {isLogin ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?'}{' '}
+          <div className="mt-6 text-center">
+            <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+              {isLogin ? 'Hesabınız yok mu?' : 'Zaten hesabınız var mı?'}
+            </p>
             <button
               onClick={toggleAuthMode}
-              className={`font-semibold focus:outline-none transition-colors duration-300 ${
+              className={`mt-2 font-semibold ${
                 darkMode
                   ? 'text-blue-400 hover:text-blue-300'
                   : 'text-blue-600 hover:text-blue-500'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Users,
@@ -21,11 +21,7 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       const response = await axios.get(
@@ -43,7 +39,11 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiUrl]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
@@ -78,7 +78,7 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
             },
           }
         );
-        fetchUsers();
+        await fetchUsers();
         setNotification({
           type: 'success',
           message: 'Kullanıcı başarıyla silindi.',
@@ -102,7 +102,7 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
         }
       );
       setIsEditModalOpen(false);
-      fetchUsers();
+      await fetchUsers();
       setNotification({
         type: 'success',
         message: 'Kullanıcı başarıyla güncellendi.',
@@ -115,13 +115,7 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
     }
   };
 
-  // Animasyon varyantları
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-  };
-
-  if (loading)
+  if (loading) {
     return (
       <div
         className={`flex justify-center items-center h-screen ${
@@ -142,12 +136,16 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
         </div>
       </div>
     );
+  }
 
   return (
     <motion.div
       initial="hidden"
       animate="visible"
-      variants={containerVariants}
+      variants={{
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+      }}
       transition={{ duration: 0.5 }}
       className={`p-6 rounded-lg shadow-md ${
         darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'
@@ -158,7 +156,6 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
         Admin Paneli
       </h1>
 
-      {/* Bildirim Mesajları */}
       {notification.message && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -265,7 +262,6 @@ const AdminPanel = ({ darkMode, apiUrl }) => {
         </table>
       </div>
 
-      {/* Sayfalandırma */}
       <div className="mt-6 flex justify-between items-center">
         <button
           onClick={() => paginate(currentPage - 1)}
@@ -325,12 +321,6 @@ const EditUserModal = ({ user, onClose, onUpdate, darkMode }) => {
     onUpdate(editedUser);
   };
 
-  // Animasyon varyantları
-  const modalVariants = {
-    hidden: { opacity: 0, y: -50 },
-    visible: { opacity: 1, y: 0 },
-  };
-
   return (
     <div
       className={`fixed inset-0 flex items-center justify-center z-50 ${
@@ -338,9 +328,8 @@ const EditUserModal = ({ user, onClose, onUpdate, darkMode }) => {
       }`}
     >
       <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={modalVariants}
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         className={`w-full max-w-md mx-auto p-6 rounded-lg shadow-lg ${
           darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'
@@ -400,30 +389,30 @@ const EditUserModal = ({ user, onClose, onUpdate, darkMode }) => {
               onClick={onClose}
               className={`px-4 py-2 rounded-md flex items-center transition-colors duration-300 ${
                 darkMode
-                  ? 'bg-gray-700 text-white hover:bg-gray-600'
-                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-              }`}
-            >
-              İptal
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              className={`px-4 py-2 rounded-md flex items-center transition-colors duration-300 ${
-                darkMode
-                  ? 'bg-blue-600 text-white hover:bg-blue-500'
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
-              }`}
-            >
-              <Save size={18} className="mr-2" />
-              Güncelle
-            </motion.button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  );
+                ? 'bg-gray-700 text-white hover:bg-gray-600'
+                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
+          >
+            İptal
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="submit"
+            className={`px-4 py-2 rounded-md flex items-center transition-colors duration-300 ${
+              darkMode
+                ? 'bg-blue-600 text-white hover:bg-blue-500'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
+          >
+            <Save size={18} className="mr-2" />
+            Güncelle
+          </motion.button>
+        </div>
+      </form>
+    </motion.div>
+  </div>
+);
 };
 
 export default AdminPanel;
