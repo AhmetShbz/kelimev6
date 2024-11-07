@@ -10,7 +10,7 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-  origin: ['https://kelimev6.vercel.app', 'http://localhost:3000'],
+  origin: ['https://kelimev6.vercel.app/api', 'https://kelimev6.vercel.app/api'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']

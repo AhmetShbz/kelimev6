@@ -12,6 +12,9 @@ import {
 import { Book, Award, TrendingUp, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import CategoryWordsPopup from './CategoryWordsPopup';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL;
 
 const MemoizedChart = React.memo(({ data, darkMode }) => (
   <ResponsiveContainer width="100%" height="100%">
@@ -84,7 +87,7 @@ const StatCard = React.memo(({ icon: Icon, title, value, color, onClick, darkMod
       >
         {title}
       </p>
-      <p className="text-3xl font-bold" style={{ color: color }}>
+      <p className="text-3xl font-bold" style={{ color }}>
         {value}
       </p>
     </div>
@@ -100,6 +103,7 @@ const Dashboard = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
 
+  // İstatistikleri hesapla
   const {
     totalWords,
     learnedWords,
@@ -123,11 +127,22 @@ const Dashboard = ({
     return { totalWords, learnedWords, difficultWords, reviewWords, data };
   }, [words, categorizedWords]);
 
-  const handleCategoryClick = useCallback((category) => {
-    if (category === 'Toplam Kelime') {
-      setSelectedCategory('Tüm Kelimeler');  // "Toplam Kelime" için özel değer
-    } else {
-      setSelectedCategory(category);  // Diğer kategoriler normal çalışacak
+  // Kategori tıklama işleyicisi
+  const handleCategoryClick = useCallback(async (word, category) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (category === 'Öğrendiğim Kelimeler') {
+        await axios.post(`${API_URL}/words/learned`, {
+          wordId: word._id,
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+      }
+      setSelectedCategory(category);
+    } catch (error) {
+      console.error('Kategori güncellenirken hata:', error);
     }
   }, []);
 
@@ -152,21 +167,22 @@ const Dashboard = ({
         Dashboard
       </h2>
 
+      {/* İstatistik Kartları */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           icon={Book}
           title="Toplam Kelime"
           value={totalWords}
           color="#3B82F6"
+          onClick={() => setSelectedCategory('Tüm Kelimeler')}
           darkMode={darkMode}
-          onClick={() => handleCategoryClick('Toplam Kelime')}  // Popup açmak için tıklama
         />
         <StatCard
           icon={Award}
           title="Öğrendiğim Kelimeler"
           value={learnedWords}
           color="#10B981"
-          onClick={() => handleCategoryClick('Öğrendiğim Kelimeler')}
+          onClick={() => setSelectedCategory('Öğrendiğim Kelimeler')}
           darkMode={darkMode}
         />
         <StatCard
@@ -174,7 +190,7 @@ const Dashboard = ({
           title="Zorlandığım Kelimeler"
           value={difficultWords}
           color="#EF4444"
-          onClick={() => handleCategoryClick('Zorlandığım Kelimeler')}
+          onClick={() => setSelectedCategory('Zorlandığım Kelimeler')}
           darkMode={darkMode}
         />
         <StatCard
@@ -182,11 +198,12 @@ const Dashboard = ({
           title="Tekrar Edilecek Kelimeler"
           value={reviewWords}
           color="#F59E0B"
-          onClick={() => handleCategoryClick('Tekrar Edilecek Kelimeler')}
+          onClick={() => setSelectedCategory('Tekrar Edilecek Kelimeler')}
           darkMode={darkMode}
         />
       </div>
 
+      {/* Grafik */}
       <div
         className={`${
           darkMode ? 'bg-gray-800' : 'bg-white'
@@ -204,6 +221,7 @@ const Dashboard = ({
         </div>
       </div>
 
+      {/* Kategori Popup'ı */}
       {selectedCategory && (
         <CategoryWordsPopup
           category={selectedCategory}

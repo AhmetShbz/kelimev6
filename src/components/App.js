@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import WordList from './components/WordList';
-import Profile from './components/Profile';
-import Dashboard from './components/Dashboard';
-import Settings from './components/Settings';
-import AuthComponent from './components/AuthComponent';
-import AdminAuth from './components/AdminAuth';
-import AdminPanel from './components/AdminPanel';
-import ProfileMenu from './components/ProfileMenu';
+import WordList from './WordList';
+import Profile from './Profile';
+import Dashboard from './Dashboard';
+import Settings from './Settings';
+import AuthComponent from './AuthComponent';
+import AdminAuth from './AdminAuth';
+import AdminPanel from './AdminPanel';
+import ProfileMenu from './ProfileMenu';
 import axios from 'axios';
 import {
   getFromLocalStorage,
-  saveToLocalStorage,
 } from '../utils/helpers';
 import { BookOpen, BarChart2, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
