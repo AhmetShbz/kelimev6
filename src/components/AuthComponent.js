@@ -31,7 +31,7 @@ const AuthComponent = ({ darkMode, setIsAuthenticated, setUserSettings }) => {
 
     try {
       if (isLogin) {
-        const response = await axios.post(
+        const response = await axios.get(
           `${API_URL}/login`,
           { loginIdentifier, password },
           {
@@ -62,7 +62,7 @@ const AuthComponent = ({ darkMode, setIsAuthenticated, setUserSettings }) => {
           setIsAuthenticated(true);
         }, 1500);
       } else {
-        await axios.post(
+        await axios.get(
           `${API_URL}/register`,
           {
             username,

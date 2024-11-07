@@ -57,8 +57,8 @@ const Settings = ({
           const lines = content.split('\n').filter(line => line.trim());
           const headers = lines[0].split(',');
 
-          if (!headers.includes('polish') || !headers.includes('turkish')) {
-            throw new Error('Geçersiz CSV formatı. "polish" ve "turkish" sütunları gereklidir.');
+          if (!headers.includes('Lehçe') || !headers.includes('Türkçe')) {
+            throw new Error('Geçersiz CSV formatı. "Lehçe" ve "Türkçe" sütunları gereklidir.');
           }
 
           const words = lines.slice(1).map(line => {
