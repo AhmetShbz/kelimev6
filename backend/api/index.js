@@ -9,11 +9,9 @@ require('dotenv').config();
 
 const app = express();
 
-// CORS ayarları
+// backend/api/index.js dosyasında
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? 'https://kelimev6.vercel.app'
-    : 'http://localhost:3000',
+  origin: 'https://kelimev6.vercel.app',  // Bu satırı güncelle
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
